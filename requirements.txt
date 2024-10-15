@@ -1,0 +1,14 @@
+blobfile==2.1.1
+mpi4py==3.1.6
+numpy==1.23.5
+opencv_python==4.8.1.78
+opencv_python_headless==4.9.0.80
+Pillow==10.1.0
+Pillow==10.3.0
+Requests==2.32.1
+respace==0.1.1
+scipy==1.13.0
+tensorflow==2.12.0
+torch==1.13.1+cu116
+torchvision==0.14.1+cu116
+tqdm==4.66.1
