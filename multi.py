@@ -21,7 +21,7 @@ from guided_diffusion.script_util_x0 import (
     args_to_dict,
 )
 
-from save_image_utils_2 import save_images
+from save_image_utils import save_images
 from npz_dataset import NpzDataset, DummyDataset
 from imagenet_dataloader.imagenet_dataset import ImageFolderDataset
 

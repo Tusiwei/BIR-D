@@ -7,7 +7,7 @@ In this study, we aim to use a DDPM to learn the prior distribution of images an
 <div>
     <a href='https://Tusiwei.github.io/' target='_blank'>Siwei Tu</a><sup>1</sup>&emsp;
     <a href='https://shangchenzhou.com/' target='_blank'>Weidong Yang</a><sup>1,†</sup>&emsp;
-    <a href='https://scholar.google.com.sg/citations?user=fMXnSGMAAAAJ&hl=en' target='_blank'>Ben Fei</a><sup>2</sup>&emsp;
+    <a href='https://scholar.google.com.sg/citations?user=fMXnSGMAAAAJ&hl=en' target='_blank'>Ben Fei</a><sup>2,†</sup>&emsp;
 </div>
 
 <div>
@@ -31,7 +31,7 @@ In this study, we aim to use a DDPM to learn the prior distribution of images an
 - For the downloaded dataset folder, command below can be used to automatically generate NPZ files that meet the requirements: 
 ```
 # generate .npz files
-python /BIR-D/imagenet_dataloader/imagenet_dataset_anysize.py
+python /BIR-D/imagenet_dataloader/imagenet_dataset_end.py
 ```
 
 - Use the fllowing command to configurate environment: 
