@@ -31,7 +31,7 @@ In this study, we aim to use a DDPM to learn the prior distribution of images an
 - For the downloaded dataset folder, command below can be used to automatically generate NPZ files that meet the requirements: 
 ```
 # generate .npz files
-python /BIR-D/imagenet_dataloader/imagenet_dataset_end.py 
+python /BIR-D/dataloader/imagenet_dataset_end.py 
 ```
 
 - Use the fllowing command to configurate environment: 
