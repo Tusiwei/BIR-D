@@ -9,7 +9,7 @@ import torch.utils.data as data
 
 
 class ImageFolderDataset(data.Dataset):
-    def __init__(self, folder_path, label_file='imagenet_val_labels.pkl', transform=None, 
+    def __init__(self, folder_path, label_file='', transform=None, 
                         permute=True, normalize=True, rank=0, world_size=1, return_numpy=False):
         self.folder_path = folder_path
         self.imgs = []
@@ -20,7 +20,6 @@ class ImageFolderDataset(data.Dataset):
                 self.imgs.append(f)
         
         if 'label' in self.imgs[0]:
-            # img names is like 27987_label_762.png
             self.imgs = sorted(self.imgs, key = lambda x : int(x.split('_')[0]))
         else:
             self.imgs = sorted(self.imgs)
@@ -45,9 +44,6 @@ class ImageFolderDataset(data.Dataset):
         self.normalize = normalize
         self.return_numpy = return_numpy
 
-        # if label_file == 0, return dummy label 0
-        # elif label_file is a pickle file, use labels in stored in the label_file 
-        # else label_file is None, label in image name, return label in the image name
         if not label_file is None:
             if isinstance(label_file, int):
                 self.labels = label_file
@@ -78,8 +74,6 @@ class ImageFolderDataset(data.Dataset):
         if self.permute:
             x = x.permute(2,0,1)
         if self.normalize:
-            # before normalize, x is of dtype uint8 range from 0 to 255
-            # after normalize, we make x float type and range from -1 to 1
             x = x.to(torch.float)
             x = x/255 * 2 - 1
 
@@ -89,8 +83,6 @@ class ImageFolderDataset(data.Dataset):
         if isinstance(self.labels, int):
             y = self.labels
         elif isinstance(self.labels, dict):
-            # img_name is like ILSVRC2012_val_00034973.JPEG
-            # key is like 00034973
             key = img_name.split('.')[0].split('_')[2]
             y = self.labels[key]
         else:

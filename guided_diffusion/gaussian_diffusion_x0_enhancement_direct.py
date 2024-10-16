@@ -8,16 +8,16 @@ Docstrings have been added, as well as DDIM sampling and a new collection of bet
 import enum
 import math
 
-import numpy as np
-import torch as th
-import torch.nn as nn
 import torch
-
-import copy
+import numpy as np
+import torch.nn as nn
+import torch as th
 
 from .nn import mean_flat
 from .losses import normal_kl, discretized_gaussian_log_likelihood
+import copy
 
+from torchvision.transforms.functional import crop
 
 def get_named_beta_schedule(schedule_name, num_diffusion_timesteps):
     """
@@ -102,7 +102,7 @@ class LossType(enum.Enum):
         return self == LossType.KL or self == LossType.RESCALED_KL
 
 
-class GaussianDiffusion:
+class GaussianDiffusion_direct:
     """
     Utilities for training and sampling diffusion models.
 
@@ -259,11 +259,12 @@ class GaussianDiffusion:
         """
         if model_kwargs is None:
             model_kwargs = {}
-
+        
         B, C = x.shape[:2]
         assert t.shape == (B,)
         model_output = model(x, self._scale_timesteps(t), **model_kwargs)
 
+        # self.model_var_type = ModelVarType.LEARNED_RANGE
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
             assert model_output.shape == (B, C * 2, *x.shape[2:])
             model_output, model_var_values = th.split(model_output, C, dim=1)
@@ -301,7 +302,8 @@ class GaussianDiffusion:
             if clip_denoised:
                 return x.clamp(-1, 1)
             return x
-
+        
+        # self.model_mean_type = ModelMeanType.EPSILON
         if self.model_mean_type == ModelMeanType.PREVIOUS_X:
             pred_xstart = process_xstart(
                 self._predict_xstart_from_xprev(x_t=x, t=t, xprev=model_output)
@@ -357,8 +359,8 @@ class GaussianDiffusion:
         if self.rescale_timesteps:
             return t.float() * (1000.0 / self.num_timesteps)
         return t
-    
-    def condition_mean(self, cond_fn, p_mean_var, x, pred_xstart, t,weight=None,light_mask=None,guidance_scale=None,corner=None,model_kwargs=None):
+
+    def condition_mean(self,cond_fn, p_mean_var, x, pred_xstart, t, weight=None,light_mask=None,guidance_scale=None, corner=None, model_kwargs=None):
         """
         Compute the mean for the previous step, given a function cond_fn that
         computes the gradient of a conditional log probability with respect to
@@ -367,19 +369,18 @@ class GaussianDiffusion:
 
         This uses the conditioning strategy from Sohl-Dickstein et al. (2015).
         """
-        # gradient = cond_fn(pred_xstart, self._scale_timesteps(t), **model_kwargs)
+        p_mean_var["mean"].requires_grad_(True)
         optimizer = th.optim.Adam([p_mean_var["mean"]], lr=0.001, betas=(0.9, 0.999), eps=1e-08, weight_decay=0, amsgrad=False)
-        new_mean = p_mean_var["mean"].float()
-
         for i in range(1):
-            weight,light_mask,gradient,mse = cond_fn(pred_xstart, self._scale_timesteps(t),weight=weight,light_mask=light_mask,guidance_scale=guidance_scale,corner=corner, **model_kwargs)
+            weight,light_mask, gradient,mse = cond_fn(pred_xstart, self._scale_timesteps(t), weight=weight,light_mask=light_mask,guidance_scale=guidance_scale, corner=corner, **model_kwargs)
             new_mean = (p_mean_var["mean"].float() +  gradient.float())
             new_mean.requires_grad_(True)
             optimizer.zero_grad()
             new_mean.backward(th.ones_like(new_mean))
             optimizer.step()
-        return new_mean, weight, light_mask, gradient, mse
-    
+        # return new_mean, light_factor, light_mask
+        return new_mean, weight, light_mask ,gradient,mse
+
     def condition_score(self, cond_fn, p_mean_var, x, t, model_kwargs=None):
         """
         Compute what the p_mean_variance output would have been, should the
@@ -403,7 +404,7 @@ class GaussianDiffusion:
             x_start=out["pred_xstart"], x_t=x, t=t
         )
         return out
-    
+
     def overlapping_grid_indices(self, x_cond, output_size=256, r=128):
         _, c, h, w = x_cond.shape
         r = 16 if r is None else r
@@ -418,6 +419,7 @@ class GaussianDiffusion:
         model,
         x,
         t,
+        l1,
         weight,
         light_mask,
         sample_y,
@@ -448,15 +450,15 @@ class GaussianDiffusion:
         p_size = 256
         x_copy = copy.copy(x)
         h_list, w_list = self.overlapping_grid_indices(x_copy)
-        corners = [(i, j) for i in h_list for j in w_list]
 
-        
+        # log K
         sample_y = sample_y.to(th.device('cuda:0'))
         temp_log_variance = temp_log_variance.to(th.device('cuda:0'))
         cons_K = -0.5 * torch.sum(((sample_y - x_copy) / temp_log_variance)**2)
         cons_K = cons_K - 0.5 * torch.log(2 * math.pi * torch.sum(torch.square(temp_log_variance)))
+        corners = [(0,0)]
         
-
+        # 形状相同，均为0的张量
         light_mask_return = th.zeros_like(light_mask, device=x.device)
         x_grid_mask = th.zeros_like(x, device=x.device)
         light_mask_grid_mask = th.zeros_like(light_mask, device=x.device)
@@ -465,6 +467,7 @@ class GaussianDiffusion:
         new_out_pred_xstart = th.zeros_like(x, device=x.device) 
         weight_return = th.zeros_like(weight, device=x.device)
         weight_grid_mask = th.zeros_like(weight, device=x.device)
+
         for (hi, wi) in corners:
             out = self.p_mean_variance(
                 model,
@@ -503,18 +506,23 @@ class GaussianDiffusion:
             (t != 0).float().view(-1, *([1] * (len(x.shape) - 1)))
         )  # no noise when t == 0
         sample = new_out_mean + nonzero_mask * th.exp(0.5 * new_out_log_variance) * noise
+
         
-        
+        '''
         in_channels = 3
-        conv_layer = nn.Conv2d(in_channels, in_channels, kernel_size=9, padding=4, bias=False,groups=3)
+        # padding=1表示填充一圈0,kernel_size应与卷积核weight的大小匹配
+        conv_layer = nn.Conv2d(in_channels, in_channels, kernel_size=3, padding=1, bias=False,groups=3)
         conv_layer.weight = nn.Parameter(weight_return)
         d_sample = conv_layer(sample) + light_mask_return
         sample_y = sample_y.to(th.device('cuda:0'))
 
         mse = (d_sample - sample_y) ** 2
         mse = mse.mean(dim=(1,2,3))
-        mse = mse.sum() * (2*in_channels**2)
+        mse = mse.sum()
+        # mse = mse / (3 * p_size * p_size)
         
+        
+        # 分子1
         sample_vec = sample.view(-1)
         new_out_mean_vec = new_out_mean.view(-1)
         minus = sample_vec - new_out_mean_vec
@@ -522,24 +530,36 @@ class GaussianDiffusion:
         # C
         cons_C = -0.5 * torch.sum(((sample_y - new_out_mean) / new_out_log_variance)**2)
         cons_C = cons_C - 0.5 * torch.log(2 * math.pi * torch.sum(torch.square(new_out_log_variance)))
+        # cons_C = cons_C / (3 * p_size * p_size)
         temp_log_variance = new_out_log_variance
 
+        
         # g
         gradient_line = gradient.view(-1)
         multi = gradient_line * minus
-        sum_multi = multi.sum() 
-
-        guidance_scale = (sum_multi + cons_C + cons_K) / mse
-        guidance_scale = - guidance_scale.abs()
-        print("guidance_scale=",guidance_scale)
+        sum_multi = multi.sum()
+        
         
 
+        guidance_scale = (sum_multi + cons_C + cons_K) / mse
+        guidance_scale = - guidance_scale.abs() * 2
+        print("guidance_scale=",guidance_scale)
+        # print(t.item())
+        l1.append(guidance_scale.item())
+        if t.item() % 100 == 0:
+            print(l1)
+        '''
+        
+        # return {"sample": sample, "pred_xstart": new_out_pred_xstart, "light_factor": light_factor, 'light_mask':light_mask_return}, light_factor, light_mask_return
         return {"sample": sample, "pred_xstart": new_out_pred_xstart, 'weight':weight_return,'light_mask':light_mask_return,'guidance_scale':guidance_scale},weight_return,light_mask_return,temp_log_variance,guidance_scale
+       
 
     def p_sample_loop(
         self,
         model,
         shape,
+        # light_factor,
+        # light_mask,
         weight,
         light_mask,
         guidance_scale,
@@ -553,7 +573,6 @@ class GaussianDiffusion:
         progress=False,
         denoise_steps=None
     ):
-
         """
         Generate samples from the model.
 
@@ -574,9 +593,12 @@ class GaussianDiffusion:
         :return: a non-differentiable batch of samples.
         """
         final = None
+
         for sample in self.p_sample_loop_progressive(
             model,
             shape,
+            # light_factor,
+            # light_mask,
             weight,
             light_mask,
             guidance_scale,
@@ -589,8 +611,9 @@ class GaussianDiffusion:
             device=device,
             progress=progress,
             denoise_steps=denoise_steps
-        ):
+        ):  
             final = sample
+
         return final["sample"], final["weight"],final['light_mask'],final['guidance_scale']
 
     def p_sample_loop_progressive(
@@ -610,7 +633,6 @@ class GaussianDiffusion:
         progress=False,
         denoise_steps = None,
     ):
-
         """
         Generate samples from the model and yield intermediate samples from
         each timestep of diffusion.
@@ -630,12 +652,10 @@ class GaussianDiffusion:
         if noise is not None:
             img = noise
         else:
-            # this
             img = th.randn(*shape, device=device)
 
+        
         if denoise_steps is None:
-            # this
-            # 若num_timesteps为5，则indices为[4,3,2,1,0]
             indices = list(range(self.num_timesteps))[::-1]
         else:
             assert noise is not None
@@ -643,6 +663,7 @@ class GaussianDiffusion:
             t_steps = t_steps * (denoise_steps-1)
             img = self.q_sample(noise, t_steps)
             indices = list(range(denoise_steps))[::-1]
+        # indices from num_timesteps-1 to 0
 
         # when forward t = num_timesteps-1
         # backward indices start from num_timesteps-1 to 0
@@ -652,10 +673,11 @@ class GaussianDiffusion:
         if progress:
             # Lazy import so that we don't depend on tqdm.
             from tqdm.auto import tqdm
+
             indices = tqdm(indices)
 
         temp_log_variance = torch.ones((1, 3, 256, 256))
-
+        l1 = []
         for i in indices:
             t = th.tensor([i] * shape[0], device=device)
             with th.no_grad():
@@ -663,6 +685,7 @@ class GaussianDiffusion:
                     model,
                     img,
                     t,
+                    l1,
                     weight,
                     light_mask,
                     sample_y,
@@ -673,12 +696,16 @@ class GaussianDiffusion:
                     cond_fn=cond_fn,
                     model_kwargs=model_kwargs,
                 )
+                
                 yield out
                 img = out["sample"]
+                # light_factor = light_factor
+                # light_mask = light_mask
                 weight = weight
                 light_mask = light_mask
                 temp_log_variance = temp_log_variance
                 guidance_scale = guidance_scale
+
 
     def ddim_sample(
         self,
@@ -849,7 +876,6 @@ class GaussianDiffusion:
                 )
                 yield out
                 img = out["sample"]
-
 
     def _vb_terms_bpd(
         self, model, x_start, x_t, t, clip_denoised=True, model_kwargs=None
@@ -1036,7 +1062,6 @@ class GaussianDiffusion:
             "mse": mse,
         }
 
-
 def _extract_into_tensor(arr, timesteps, broadcast_shape):
     """
     Extract values from a 1-D numpy array for a batch of indices.
@@ -1049,5 +1074,6 @@ def _extract_into_tensor(arr, timesteps, broadcast_shape):
     """
     res = th.from_numpy(arr).to(device=timesteps.device)[timesteps].float()
     while len(res.shape) < len(broadcast_shape):
+        # res的维度最后加1，例如[2,6]变为[2,6,1]
         res = res[..., None]
     return res.expand(broadcast_shape)

@@ -74,8 +74,6 @@ class ImageFolderDataset(data.Dataset):
         if self.permute:
             x = x.permute(2,0,1)
         if self.normalize:
-            # before normalize, x is of dtype uint8 range from 0 to 255
-            # after normalize, we make x float type and range from -1 to 1
 
             x = x.to(torch.float)
             x = x/255 * 2 - 1
@@ -102,7 +100,7 @@ def save_image_tensor(x, label, save_dir):
 
 if __name__ == '__main__':
     import pdb
-    path='dataset path'
+    path=''
     image_size = 256
     transform = transforms.Compose(
             [   
