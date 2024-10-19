@@ -25,7 +25,7 @@ In this study, we aim to use a DDPM to learn the prior distribution of images an
 
 
 ## :diamonds: Checkpoints and Environment
-- Download pretrained uncondition DDPMs on ImageNet-256 from (https://github.com/openai/guided-diffusion). 
+- Download pretrained uncondition DDPMs on ImageNet-256.
 
 
 - For the downloaded dataset folder, command below can be used to automatically generate NPZ files that meet the requirements: 
@@ -116,7 +116,4 @@ Our paper is inspired by:
 
 Thanks for their awesome works!
 
-## :telephone_receiver: Contact
-
-If you have any other questions, please feel free to send them via email tusiwei906@gmail.com to contact us. :rose:
 
