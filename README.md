@@ -17,15 +17,15 @@ In this study, we aim to use a DDPM to learn the prior distribution of images an
 
 
 
-<img src="assets/teaser.png" width="800px"/>
+<img src="asset/teaser.png" width="800px"/>
 
 ---
 
 </div>
 
 
-## :diamonds: Checkpoints and Environment
-- Download pretrained uncondition DDPMs on ImageNet-256.
+## :diamonds: Checkpoints and Dataset
+- Our model utilizes pretrained uncondition DDPMs on ImageNet.
 
 
 - For the downloaded dataset folder, command below can be used to automatically generate NPZ files that meet the requirements: 
@@ -34,28 +34,21 @@ In this study, we aim to use a DDPM to learn the prior distribution of images an
 python /BIR-D/dataloader/imagenet_dataset_end.py 
 ```
 
-- Use the fllowing command to configurate environment: 
-```
-# install python dependencies
-pip install -r requirements.txt
-pip install -e .
-```
-
 ## Tasks
 
 ### :fire:Blind Image Restoration
-A given set of degraded images can be used for testing, and custom degradation can also be used to test the blind image restoration performance of BIR-D.
+
 ```
 MODEL_FLAGS="--attention_resolutions 32,16,8 --class_cond False --diffusion_steps 1000 --image_size 256 --learn_sigma True --noise_schedule linear --num_channels 256 --num_head_channels 64 --num_res_blocks 2 --resblock_updown True --use_fp16 True --use_scale_shift_norm True"
 ```
 ```
-python linear.py \
+python deblurring.py \
 $MODEL_FLAGS \
 --save_dir [Path of storing output results]
---base_samples [Path of the npz file corresponding to the downloaded Imagenet 1k dataset]
+--base_samples [Path of the npz file corresponding to the downloaded Imagenet dataset]
 ```
 
-<img src="assets/blur.png" width="800px"/>
+<img src="asset/blur.png" width="800px"/>
 
 ### :fire:Blind Face Restoration / Motion Blur Reduction
 
@@ -70,7 +63,7 @@ $MODEL_FLAGS \
 --base_samples [Path of the blind image restoration dataset]
 ```
 
-<img src="assets/blind.png" width="800px"/>
+<img src="asset/blind.png" width="800px"/>
 
 ### :fire:Multi-Degradation Image Restoration
 
@@ -86,7 +79,7 @@ $MODEL_FLAGS \
 ```
 
 
-<img src="assets/multi.png" width="800px"/>
+<img src="asset/multi.png" width="800px"/>
 
 ### :fire:Low-light Enhancement
 
@@ -102,7 +95,7 @@ $MODEL_FLAGS \
 ```
 
 
-<img src="assets/lowlight.png" width="800px"/>
+<img src="asset/lowlight.png" width="800px"/>
 
 
 ## :clap: Acknowledgement

@@ -31,11 +31,10 @@ def classifier_defaults():
     return dict(
         image_size=64,
         classifier_use_fp16=False,
-        classifier_width=128,
         classifier_depth=2,
-        classifier_attention_resolutions="32,16,8",  # 16
-        classifier_use_scale_shift_norm=True,  # False
-        classifier_resblock_updown=True,  # False
+        classifier_attention_resolutions="32,16,8",
+        classifier_use_scale_shift_norm=True,
+        classifier_resblock_updown=True,
         classifier_pool="attention",
     )
 
@@ -46,8 +45,6 @@ def model_and_diffusion_defaults():
     """
     res = dict(
         image_size=64,
-        num_channels=128,
-        num_res_blocks=2,
         num_heads=4,
         num_heads_upsample=-1,
         num_head_channels=-1,
@@ -74,7 +71,6 @@ def classifier_and_diffusion_defaults():
 def create_model_and_diffusion(
     image_size,
     class_cond,
-    learn_sigma,
     num_channels,
     num_res_blocks,
     channel_mult,
@@ -101,7 +97,6 @@ def create_model_and_diffusion(
         num_channels,
         num_res_blocks,
         channel_mult=channel_mult,
-        learn_sigma=learn_sigma,
         class_cond=class_cond,
         use_checkpoint=use_checkpoint,
         attention_resolutions=attention_resolutions,
@@ -116,7 +111,6 @@ def create_model_and_diffusion(
     )
     diffusion = create_gaussian_diffusion(
         steps=diffusion_steps,
-        learn_sigma=learn_sigma,
         noise_schedule=noise_schedule,
         use_kl=use_kl,
         predict_xstart=predict_xstart,
@@ -443,9 +437,6 @@ def args_to_dict(args, keys):
 
 
 def str2bool(v):
-    """
-    https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
-    """
     if isinstance(v, bool):
         return v
     if v.lower() in ("yes", "true", "t", "y", "1"):
