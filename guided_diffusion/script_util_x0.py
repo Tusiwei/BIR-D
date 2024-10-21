@@ -31,6 +31,7 @@ def classifier_defaults():
     return dict(
         image_size=64,
         classifier_use_fp16=False,
+        classifier_width=128,
         classifier_depth=2,
         classifier_attention_resolutions="32,16,8",
         classifier_use_scale_shift_norm=True,
@@ -45,6 +46,8 @@ def model_and_diffusion_defaults():
     """
     res = dict(
         image_size=64,
+        num_channels=128,
+        num_res_blocks=2,
         num_heads=4,
         num_heads_upsample=-1,
         num_head_channels=-1,

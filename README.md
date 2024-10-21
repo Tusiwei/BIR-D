@@ -34,6 +34,8 @@ For real-world datasets, it is necessary to add degradation in advance and form 
 
 ## Tasks
 
+The code is the October version. 
+
 ### :fire:Blind Image Restoration
 
 ```
