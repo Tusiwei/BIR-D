@@ -5,9 +5,9 @@
 In this study, we aim to use a DDPM to learn the prior distribution of images and ultimately solve non-blind and blind problems in various image restoration tasks.
 
 <div>
-    <a href='https://Tusiwei.github.io/' target='_blank'>Siwei Tu</a><sup>1</sup>&emsp;
-    <a href='https://shangchenzhou.com/' target='_blank'>Weidong Yang</a><sup>1,†</sup>&emsp;
-    <a href='https://scholar.google.com.sg/citations?user=fMXnSGMAAAAJ&hl=en' target='_blank'>Ben Fei</a><sup>2,†</sup>&emsp;
+    <a target='_blank'>Siwei Tu</a><sup>1</sup>&emsp;
+    <a target='_blank'>Weidong Yang</a><sup>1,†</sup>&emsp;
+    <a target='_blank'>Ben Fei</a><sup>2,†</sup>&emsp;
 </div>
 
 <div>
@@ -25,18 +25,18 @@ In this study, we aim to use a DDPM to learn the prior distribution of images an
 
 
 ## :diamonds: Checkpoints and Dataset
-- Our model utilizes pretrained uncondition DDPMs on ImageNet.
+- Our model utilizes pretrained DDPMs on ImageNet.
+[https://github.com/openai/guided-diffusion](https://github.com/openai/guided-diffusion/tree/main)
 
+- Datasets can be download in [https://paperswithcode.com/](https://paperswithcode.com/).
 
-- For the downloaded dataset folder, command below can be used to automatically generate NPZ files that meet the requirements: 
-```
-# generate .npz files
-python /BIR-D/dataloader/imagenet_dataset_end.py 
-```
+For real-world datasets, it is necessary to add degradation in advance and form a .npz file.
 
 ## Tasks
 
 ### :fire:Blind Image Restoration
+
+Part of the code will be released later
 
 ```
 MODEL_FLAGS="--attention_resolutions 32,16,8 --class_cond False --diffusion_steps 1000 --image_size 256 --learn_sigma True --noise_schedule linear --num_channels 256 --num_head_channels 64 --num_res_blocks 2 --resblock_updown True --use_fp16 True --use_scale_shift_norm True"
@@ -47,6 +47,7 @@ $MODEL_FLAGS \
 --save_dir [Path of storing output results]
 --base_samples [Path of the npz file corresponding to the downloaded Imagenet dataset]
 ```
+
 
 <img src="asset/blur.png" width="800px"/>
 
